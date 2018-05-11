@@ -1,25 +1,153 @@
 package org.itzheng.netload;
 
 import android.graphics.Color;
+import android.hardware.Sensor;
+import android.hardware.SensorEvent;
+import android.hardware.SensorEventListener;
+import android.hardware.SensorManager;
 import android.support.v4.widget.CircularProgressDrawable;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.support.v7.graphics.drawable.DrawerArrowDrawable;
+import android.util.Log;
 import android.widget.ImageView;
+import android.widget.TextView;
 
+import org.itzheng.net.http.helper.HttpFullHelper;
+import org.itzheng.net.http.proxy.callback.IHttpCallback;
+import org.itzheng.net.http.proxy.callback.impl.HttpCallback;
+import org.itzheng.net.http.proxy.impl.okhttp.OkHttpHttpFull;
 import org.itzheng.net.image.helper.ImageLoaderHelper;
 import org.itzheng.net.image.proxy.impl.glide.GlideImageLoader;
+import org.itzheng.net.thread.ThreadUtils;
 
-public class MainActivity extends AppCompatActivity {
+public class MainActivity extends AppCompatActivity implements SensorEventListener {
     ImageView ivImage;
     String imageUrl = "https://image.baidu.com/search/down?tn=download&word=download&ie=utf8&fr=detail&url=https%3A%2F%2Ftimgsa.baidu.com%2Ftimg%3Fimage%26quality%3D80%26size%3Db9999_10000%26sec%3D1525861617232%26di%3Df8f4ddec2069ef00d984360ca05806de%26imgtype%3D0%26src%3Dhttp%253A%252F%252Fi4.download.fd.pchome.net%252Fg1%252FM00%252F12%252F04%252FoYYBAFZS2uaIR_NiADNPLO6oiewAACx_gAAyJkAM09E943.jpg&thumburl=https%3A%2F%2Fss1.bdstatic.com%2F70cFvXSh_Q1YnxGkpoWK1HF6hhy%2Fit%2Fu%3D3252027710%2C3930353505%26fm%3D27%26gp%3D0.jpg";
+    String url1 = "https://github.com/itzheng/RingModule/blob/master/README.md";
+    String url2 = "https://github.com/itzheng/ActivityModule/blob/master/README.md";
+    String url3 = "https://github.com/itzheng/BaseUtils/blob/master/README.md";
+    TextView tvRunSteps;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_main);
-        ivImage = findViewById(R.id.ivImage);
-        testImageLoader();
+//        setContentView(R.layout.activity_main);
+//        ivImage = findViewById(R.id.ivImage);
+//        tvRunSteps = findViewById(R.id.tvRunSteps);
+//        ThreadUtils.execute(new Runnable() {
+//            @Override
+//            public void run() {
+////                testCallback();
+//            }
+//        });
+        testCallback();
+//        testRun();
+//        testHttp();
+//        testImageLoader();
+    }
+
+    private void testCallback() {
+        HttpFullHelper.init(new OkHttpHttpFull());
+        HttpFullHelper.getInstance().get(imageUrl).setHttpCallBack(new IHttpCallback() {
+            @Override
+            public void onSuccess(String response) {
+                Log.d(TAG, "onSuccess: " + response);
+            }
+
+            @Override
+            public void onError(String error, Exception e) {
+                Log.e(TAG, "onError: " + error);
+            }
+
+            @Override
+            public void onCancel(String error) {
+                Log.d(TAG, "onCancel: ");
+            }
+        }).setTag(MainActivity.this).exec();
+        HttpFullHelper.getInstance().get(url2).setHttpCallBack(new HttpCallback() {
+            @Override
+            public void onSuccess(String response) {
+                Log.d(TAG, "onSuccess: " + response);
+            }
+
+            @Override
+            public void onError(String error, Exception e) {
+                Log.e(TAG, "onError: " + error);
+            }
+
+        }).exec();
+
+        HttpFullHelper.getInstance().get(url3).setHttpCallBack(new HttpCallback() {
+            @Override
+            public void onSuccess(String response) {
+                Log.d(TAG, "onSuccess: " + response);
+            }
+
+            @Override
+            public void onError(String error, Exception e) {
+                Log.e(TAG, "onError: " + error);
+            }
+        }).exec();
+        ThreadUtils.executeDelayed(new Runnable() {
+            @Override
+            public void run() {
+                HttpFullHelper.getInstance().cancel(MainActivity.this);
+            }
+        }, 100);
+
+
+    }
+
+    SensorManager mSensorManager;
+    Sensor mStepCount;
+    Sensor mStepDetector;
+
+    private void testRun() {
+        mSensorManager = (SensorManager) getSystemService(SENSOR_SERVICE);
+        //单次有效计步
+        mStepCount = mSensorManager.getDefaultSensor(Sensor.TYPE_STEP_COUNTER);
+        //系统计步累加值
+        mStepDetector = mSensorManager.getDefaultSensor(Sensor.TYPE_STEP_DETECTOR);
+        mSensorManager.registerListener(this, mStepDetector, SensorManager.SENSOR_DELAY_FASTEST);
+        mSensorManager.registerListener(this, mStepCount, SensorManager.SENSOR_DELAY_FASTEST);
+        tvRunSteps.setText("mStepCount==null " + (mStepCount == null) + " , mStepDetector ==null " + (mStepDetector == null));
+
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        //取消注册
+        if (mSensorManager != null) {
+            mSensorManager.unregisterListener(this, mStepDetector);
+            mSensorManager.unregisterListener(this, mStepCount);
+        }
+
+    }
+
+    private static final String TAG = "MainActivity";
+
+    private void testHttp() {
+        HttpFullHelper.init(new OkHttpHttpFull());
+        HttpFullHelper.getInstance().get(imageUrl)
+                .setHttpCallBack(new IHttpCallback() {
+                    @Override
+                    public void onSuccess(String response) {
+                        Log.d(TAG, "onSuccess: " + response);
+                    }
+
+                    @Override
+                    public void onError(String error, Exception e) {
+                        Log.e(TAG, "onError: " + error);
+                    }
+
+                    @Override
+                    public void onCancel(String error) {
+
+                    }
+
+                }).exec();
     }
 
 
@@ -37,4 +165,22 @@ public class MainActivity extends AppCompatActivity {
 //        ImageLoaderHelper.getInstance().load(R.drawable.ic_launcher_background).into(ivImage);
     }
 
+    int count;
+
+    @Override
+    public void onSensorChanged(SensorEvent event) {
+        Log.d(TAG, "SensorEvent:" + event);
+
+        if (event.values[0] == 1) {
+            count++;
+        } else {
+            count = (int) event.values[0];
+        }
+        tvRunSteps.setText("运动步数：" + count);
+    }
+
+    @Override
+    public void onAccuracyChanged(Sensor sensor, int accuracy) {
+        Log.d(TAG, "Sensor:" + sensor + " ,accuracy:" + accuracy);
+    }
 }

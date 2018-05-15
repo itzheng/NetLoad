@@ -6,7 +6,13 @@ package org.itzheng.net.http.proxy.callback;
  */
 
 public interface IHttpCallback {
-    void onSuccess(String response);
+    /**
+     * 请求结果，默认传输bytes数组，子类可实现转成字符串，这样兼容性比较强，可以直接对文件进行读取写入操作
+     * 如果返回的是String结果，那么再转成byte[]可能会因为换行符等原因造成数据错误
+     *
+     * @param bytes
+     */
+    void onSuccess(byte[] bytes);
 
     void onError(String error, Exception e);
 

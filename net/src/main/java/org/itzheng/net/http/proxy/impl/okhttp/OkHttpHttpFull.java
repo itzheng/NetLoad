@@ -39,11 +39,49 @@ public class OkHttpHttpFull implements IHttpFull {
 
     @Override
     public OkHttpHttpFull addHeaders(Map<String, Object> headers) {
+        initBuilder();
+        if (mBuilder.headers == null) {
+            mBuilder.headers = new HashMap<>();
+        }
+        if (headers != null) {
+            mBuilder.headers.putAll(headers);
+        }
         return this;
     }
 
     @Override
     public OkHttpHttpFull addHeader(String key, String name) {
+        initBuilder();
+        if (mBuilder.headers == null) {
+            mBuilder.headers = new HashMap<>();
+        }
+        if (key != null) {
+            mBuilder.headers.put(key, name);
+        }
+        return this;
+    }
+
+    @Override
+    public OkHttpHttpFull addParam(String key, String name) {
+        initBuilder();
+        if (mBuilder.params == null) {
+            mBuilder.params = new HashMap<>();
+        }
+        if (key != null) {
+            mBuilder.params.put(key, name);
+        }
+        return this;
+    }
+
+    @Override
+    public OkHttpHttpFull addParams(Map<String, Object> params) {
+        initBuilder();
+        if (mBuilder.params == null) {
+            mBuilder.params = new HashMap<>();
+        }
+        if (params != null) {
+            mBuilder.params.putAll(params);
+        }
         return this;
     }
 
@@ -63,7 +101,6 @@ public class OkHttpHttpFull implements IHttpFull {
                 Log.d(TAG, "call.cancel: ");
                 call.cancel();
             } else {
-
                 Log.d(TAG, "call == null: callMap.size" + callMap.size());
             }
         }
@@ -71,11 +108,15 @@ public class OkHttpHttpFull implements IHttpFull {
 
 
     @Override
-    public void exec() {
+    public synchronized void exec() {
+        //将builder数据存在内存中，避免数据覆盖
+        final Builder finalBuilder = mBuilder;
+        mBuilder = null;
+        //如果是主线程，直接切换到子线程，如果是子线程，会不会造成多个方法执行时，请求等待？
         if (ThreadUtils.isMainThread()) {
             count++;
             final int currentId = count;
-            builderMap.put(currentId, mBuilder);
+            builderMap.put(currentId, finalBuilder);
             //如果在主线程，则切换到子线程执行
             ThreadUtils.execute(new Runnable() {
                 @Override
@@ -86,9 +127,8 @@ public class OkHttpHttpFull implements IHttpFull {
                 }
             });
         } else {
-            threadExec(mBuilder);
+            threadExec(finalBuilder);
         }
-        mBuilder = null;
     }
 
     /**
@@ -105,64 +145,100 @@ public class OkHttpHttpFull implements IHttpFull {
      *
      * @param builder
      */
-    private void threadExec(final Builder builder) {
-        Request.Builder requestBuilder = new Request.Builder().url(builder.url);
+    private void threadExec(Builder builder) {
+        Request.Builder requestBuilder = new Request.Builder();
+        Request request = null;
         switch (builder.type) {
             case TYPE_GET:
-                try {
-                    Request request = requestBuilder.get().build();
-                    Call call = client.newCall(request);
-                    //添加tag，方便取消
-                    if (builder.tag != null) {
-                        Log.d(TAG, "threadExec: " + "builder.tag : " + builder.tag);
-                        callMap.put(builder.tag, call);
-                    } else {
-                        Log.d(TAG, "threadExec: " + "tag == null");
-                    }
-                    Response response = call.execute();
-                    if (builder.callback != null) {
-                        if (response != null) {
-                            builder.callback.onSuccess(response.body().string());
-                        } else {
-                            builder.callback.onError("Response is null", new NullPointerException("Response is null"));
+                if (builder.params == null || builder.params.isEmpty()) {
+                    requestBuilder.url(builder.url);
+                } else {
+                    StringBuffer params = new StringBuffer();
+                    for (Map.Entry<String, Object> entry : builder.params.entrySet()) {
+                        if (params.length() != 0) {
+                            params.append("&");
                         }
+                        params.append(entry.getKey() + "=" + entry.getValue());
                     }
-                } catch (IOException e) {
-//                    e.printStackTrace();
-                    if (builder.callback != null) {
-                        if ("Canceled".equals(e.getMessage())) {
-                            builder.callback.onCancel(e.getMessage());
-                        } else {
-                            builder.callback.onError(e.toString(), e);
-                        }
-
-                    }
+                    requestBuilder.url(builder.url + "?" + params.toString());
                 }
+                request = requestBuilder.get().build();
+                execRequest(builder, request);
                 break;
             case TYPE_POST:
-                try {
+                requestBuilder.url(builder.url);
+                if (builder.json == null || "".equals(builder.json)) {
+                    request = requestBuilder.get().build();
+                } else {
                     RequestBody body = RequestBody.create(JSON, builder.json);
-                    Request request = requestBuilder.post(body).build();
-                    Response response = client.newCall(request).execute();
-                    if (builder.callback != null) {
-                        if (response != null) {
-                            builder.callback.onSuccess(response.body().string());
-                        } else {
-                            builder.callback.onError("Response is null", new NullPointerException("Response is null"));
-                        }
-                    }
-                } catch (IOException e) {
-//                    e.printStackTrace();
-                    if (builder.callback != null) {
-                        builder.callback.onError(e.toString(), e);
+                    request = requestBuilder.post(body).build();
+                }
+                if (!(builder.headers == null || builder.headers.isEmpty())) {
+                    //设置头部信息，如果有的话
+                    for (Map.Entry<String, Object> entry : builder.headers.entrySet()) {
+                        requestBuilder.addHeader(entry.getKey(), entry.getValue() == null ? "" : entry.getValue().toString());
                     }
                 }
+                execRequest(builder, request);
                 break;
         }
+        //操作完成后，就移除tag
         if (builder.tag != null) {
-            //操作完成后，就移除tag
             Log.d(TAG, "threadExec: " + "remove Call");
             callMap.remove(builder.tag);
+        }
+        builder = null;
+    }
+
+    /**
+     * 执行请求操作
+     *
+     * @param builder
+     * @param request
+     */
+    private void execRequest(Builder builder, Request request) {
+        try {
+            Call call = client.newCall(request);
+            //给call添加tag
+            addTagToCall(builder, call);
+            Response response = call.execute();
+            if (builder.callback != null) {
+                if (response != null) {
+                    MediaType type = response.body().contentType();
+                    Log.d(TAG, "threadExec: type:" + type.type());
+//                    builder.callback.onSuccess(response.body().bytes());
+                    //如果直接回调Byte[]兼容性更强，但是
+                    builder.callback.onSuccess(response.body().bytes());
+                } else {
+                    builder.callback.onError("Response is null", new NullPointerException("Response is null"));
+                }
+            }
+        } catch (IOException e) {
+//                    e.printStackTrace();
+            if (builder.callback != null) {
+                if ("Canceled".equals(e.getMessage())) {
+                    builder.callback.onCancel(e.getMessage());
+                } else {
+                    builder.callback.onError(e.toString(), e);
+                }
+
+            }
+        }
+    }
+
+    /**
+     * 给call添加tag
+     *
+     * @param builder
+     * @param call
+     */
+    private void addTagToCall(Builder builder, Call call) {
+        //添加tag，方便取消
+        if (builder.tag != null) {
+            Log.d(TAG, "threadExec: " + "builder.tag : " + builder.tag);
+            callMap.put(builder.tag, call);
+        } else {
+            Log.d(TAG, "threadExec: " + "tag == null");
         }
     }
 
@@ -205,5 +281,7 @@ public class OkHttpHttpFull implements IHttpFull {
         public IHttpCallback callback;
         public String json;
         public Object tag;
+        public Map<String, Object> params;
+        public Map<String, Object> headers;
     }
 }

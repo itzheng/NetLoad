@@ -4,6 +4,7 @@ import android.graphics.drawable.Drawable;
 import android.widget.ImageView;
 
 import org.itzheng.net.image.proxy.IImageLoader;
+import org.itzheng.net.image.proxy.impl.glide.GlideImageLoader;
 
 /**
  * Title:<br>
@@ -15,6 +16,12 @@ import org.itzheng.net.image.proxy.IImageLoader;
 public class ImageLoaderHelper implements IImageLoader {
     private static IImageLoader mImageLoader;
     private static ImageLoaderHelper _instance;
+
+    static {
+        if (mImageLoader == null) {
+            mImageLoader = new GlideImageLoader();
+        }
+    }
 
     public static ImageLoaderHelper getInstance() {
         if (_instance == null) {

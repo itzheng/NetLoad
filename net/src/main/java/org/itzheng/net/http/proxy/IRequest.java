@@ -34,7 +34,4 @@ public interface IRequest extends IBaseHttp {
     IRequest post(String url);
 
     IRequest get(String url);
-    //    IRequest delete(String url);
-//
-//    IRequest put(String url);
 }

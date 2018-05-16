@@ -21,6 +21,7 @@ import org.itzheng.net.http.proxy.impl.okhttp.OkHttpHttpFull;
 import org.itzheng.net.image.ImageUtils;
 import org.itzheng.net.image.helper.ImageLoaderHelper;
 import org.itzheng.net.image.proxy.impl.glide.GlideImageLoader;
+import org.itzheng.net.thread.ThreadUtils;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -41,19 +42,19 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         ivImage = findViewById(R.id.ivImage);
-//        tvRunSteps = findViewById(R.id.tvRunSteps);
+        tvRunSteps = findViewById(R.id.tvRunSteps);
 //        ThreadUtils.execute(new Runnable() {
 //            @Override
 //            public void run() {
 ////                testCallback();
 //            }
 //        });
-//        testCallback();
-//        testRun();
+        testCallback();
+        testRun();
         testGetRequest();
         testImages();
 //        testImageLoader();
-//        testPostRequest();
+        testPostRequest();
 
     }
 
@@ -77,83 +78,83 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
                 }).exec();
     }
 
-//    private void testPostRequest() {
-//        String json = "{\n" +
-//                "\"datasource\": \"dsERP\",\n" +
-//                " \"list\": [\n" +
-//                "   {\n" +
-//                "      \"id\": \"dsERP\",\n" +
-//                "       \"sql\": \"select count(*) from Nfirm where  (1=1) and (1=1)\"\n" +
-//                "     }\n" +
-//                "   ],\n" +
-//                "   \"response\": \"json\"\n" +
-//                " }";
+    private void testPostRequest() {
+        String json = "{\n" +
+                "\"datasource\": \"dsERP\",\n" +
+                " \"list\": [\n" +
+                "   {\n" +
+                "      \"id\": \"dsERP\",\n" +
+                "       \"sql\": \"select count(*) from Nfirm where  (1=1) and (1=1)\"\n" +
+                "     }\n" +
+                "   ],\n" +
+                "   \"response\": \"json\"\n" +
+                " }";
 //        json = null;
-//        HttpFullHelper.init(new OkHttpHttpFull());
-//        HttpFullHelper.getInstance().post(postUrl).addJson(json).setHttpCallBack(new HttpCallback() {
-//            @Override
-//            public void onSuccess(String response) {
-//                Log.d(TAG, "onSuccess: " + response);
-//            }
-//
-//            @Override
-//            public void onError(String error, Exception e) {
-//                Log.w(TAG, "onError: " + error);
-//            }
-//        }).exec();
-//    }
+        HttpFullHelper.init(new OkHttpHttpFull());
+        HttpFullHelper.getInstance().post(postUrl).addJson(json).setHttpCallBack(new HttpRequestCallback() {
+            @Override
+            public void onSuccess(String response) {
+                Log.d(TAG, "onSuccess: " + response);
+            }
 
-//    private void testCallback() {
-//        HttpFullHelper.init(new OkHttpHttpFull());
-//        HttpFullHelper.getInstance().get(imageUrl).setHttpCallBack(new IHttpCallback() {
-//            @Override
-//            public void onSuccess(String response) {
-//                Log.d(TAG, "onSuccess: " + response);
-//            }
-//
-//            @Override
-//            public void onError(String error, Exception e) {
-//                Log.e(TAG, "onError: " + error);
-//            }
-//
-//            @Override
-//            public void onCancel(String error) {
-//                Log.d(TAG, "onCancel: ");
-//            }
-//        }).setTag(MainActivity.this).exec();
-//        HttpFullHelper.getInstance().get(url2).setHttpCallBack(new HttpCallback() {
-//            @Override
-//            public void onSuccess(String response) {
-//                Log.d(TAG, "onSuccess: " + response);
-//            }
-//
-//            @Override
-//            public void onError(String error, Exception e) {
-//                Log.e(TAG, "onError: " + error);
-//            }
-//
-//        }).exec();
-//
-//        HttpFullHelper.getInstance().get(url3).setHttpCallBack(new HttpCallback() {
-//            @Override
-//            public void onSuccess(String response) {
-//                Log.d(TAG, "onSuccess: " + response);
-//            }
-//
-//            @Override
-//            public void onError(String error, Exception e) {
-//                Log.e(TAG, "onError: " + error);
-//            }
-//        }).exec();
-//        ThreadUtils.executeDelayed(new Runnable() {
-//            @Override
-//            public void run() {
-//                HttpFullHelper.getInstance().cancel(MainActivity.this);
-//            }
-//        }, 100);
-//
-//
-//    }
+            @Override
+            public void onError(String error, Exception e) {
+                Log.w(TAG, "onError: " + error);
+            }
+        }).exec();
+    }
+
+    private void testCallback() {
+        HttpFullHelper.init(new OkHttpHttpFull());
+        HttpFullHelper.getInstance().get(imageUrl).setHttpCallBack(new HttpRequestCallback() {
+            @Override
+            public void onSuccess(String response) {
+                Log.d(TAG, "onSuccess: " + response);
+            }
+
+            @Override
+            public void onError(String error, Exception e) {
+                Log.e(TAG, "onError: " + error);
+            }
+
+            @Override
+            public void onCancel(String error) {
+                Log.d(TAG, "onCancel: ");
+            }
+        }).setTag(MainActivity.this).exec();
+        HttpFullHelper.getInstance().get(url2).setHttpCallBack(new HttpRequestCallback() {
+            @Override
+            public void onSuccess(String response) {
+                Log.d(TAG, "onSuccess: " + response);
+            }
+
+            @Override
+            public void onError(String error, Exception e) {
+                Log.e(TAG, "onError: " + error);
+            }
+
+        }).exec();
+
+        HttpFullHelper.getInstance().get(url3).setHttpCallBack(new HttpRequestCallback() {
+            @Override
+            public void onSuccess(String response) {
+                Log.d(TAG, "onSuccess: " + response);
+            }
+
+            @Override
+            public void onError(String error, Exception e) {
+                Log.e(TAG, "onError: " + error);
+            }
+        }).exec();
+        ThreadUtils.executeDelayed(new Runnable() {
+            @Override
+            public void run() {
+                HttpFullHelper.getInstance().cancel(MainActivity.this);
+            }
+        }, 100);
+
+
+    }
 
     SensorManager mSensorManager;
     Sensor mStepCount;
